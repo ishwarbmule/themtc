@@ -1,0 +1,116 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-forest: var(--forest);
+  --color-forest-deep: var(--forest-deep);
+  --color-forest-light: var(--forest-light);
+  --color-ember: var(--ember);
+  --color-ember-deep: var(--ember-deep);
+  --color-cream: var(--cream);
+  --color-ink: var(--ink);
+  --color-whatsapp: var(--whatsapp);
+
+  --font-display: "Bricolage Grotesque", "Inter", sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  --shadow-trek: 0 20px 50px -20px color-mix(in oklab, var(--forest-deep) 50%, transparent);
+  --shadow-card: 0 10px 30px -12px color-mix(in oklab, var(--ink) 25%, transparent);
+}
+
+:root {
+  --radius: 0.875rem;
+
+  /* Brand */
+  --forest: #1F5E3B;
+  --forest-deep: #143E27;
+  --forest-light: #2E7A4F;
+  --ember: #F47C20;
+  --ember-deep: #D8631A;
+  --cream: #F7F5F0;
+  --ink: #222222;
+  --whatsapp: #25D366;
+
+  --background: #0B0B0B;
+  --foreground: #F2F1EC;
+  --card: #161616;
+  --card-foreground: #F2F1EC;
+  --popover: #161616;
+  --popover-foreground: #F2F1EC;
+  --primary: #F47C20;
+  --primary-foreground: #0B0B0B;
+  --secondary: #1F5E3B;
+  --secondary-foreground: #F7F5F0;
+  --muted: #1A1A1A;
+  --muted-foreground: #9A9A95;
+  --accent: #1F1F1F;
+  --accent-foreground: #F47C20;
+  --destructive: #E53935;
+  --destructive-foreground: #FFFFFF;
+  --border: #262626;
+  --input: #2A2A2A;
+  --ring: #F47C20;
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html { scroll-behavior: smooth; background: #0B0B0B; }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
+}
+
+@utility container-trek {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+  max-width: 1280px;
+}
+
+@utility text-balance { text-wrap: balance; }
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@utility animate-float { animation: float-slow 4s ease-in-out infinite; }
+
