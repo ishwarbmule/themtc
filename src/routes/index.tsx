@@ -312,14 +312,7 @@ export const PACKAGES_WITH_DATES: TrekPackage[] = PACKAGES.map((pkg) => {
   };
 });
 
-const CATEGORIES = [
-  { name: "Weekend Treks", icon: Calendar, count: 18 },
-  { name: "Monsoon Treks", icon: CloudRain, count: 12 },
-  { name: "Fort Treks", icon: Shield, count: 9 },
-  { name: "Camping Trips", icon: TentTree, count: 7 },
-  { name: "Beginner Treks", icon: Footprints, count: 11 },
-  { name: "Backpacking", icon: Backpack, count: 5 },
-];
+
 
 const REVIEWS = [
   { name: "Aditi Rao", trek: "Kalsubai Peak", rating: 5, text: "Best monsoon trek of my life. Trek leaders were super safety-focused and the views from the top were unreal." },
@@ -341,6 +334,7 @@ function Index() {
   const [packages, setPackages] = useState<TrekPackage[]>(PACKAGES_WITH_DATES);
   const [galleryItems, setGalleryItems] = useState<string[]>([]);
   const [reelItems, setReelItems] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   useEffect(() => {
     const loadTreks = async () => {
@@ -434,8 +428,8 @@ function Index() {
       <Hero />
       <Stats />
       <Upcoming packages={packages} />
-      <Categories />
-      <FeaturedPackages packages={packages} onBook={setSelected} />
+      <Categories packages={packages} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+      <FeaturedPackages packages={packages} activeCategory={activeCategory} setActiveCategory={setActiveCategory} onBook={setSelected} />
       <Safety />
       <Gallery galleryItems={galleryItems} reelItems={reelItems} />
       <Reviews />
@@ -693,21 +687,52 @@ function Upcoming({ packages }: { packages: TrekPackage[] }) {
 }
 
 /* ---------------- Categories ---------------- */
-function Categories() {
+function Categories({ packages, activeCategory, setActiveCategory }: { packages: TrekPackage[]; activeCategory: string | null; setActiveCategory: (c: string | null) => void }) {
+  const getTrekCategories = (p: TrekPackage): string[] => {
+    const cats: string[] = [];
+    if (p.duration.includes("1D") || p.duration.includes("2D")) cats.push("Weekend Treks");
+    if (p.tag.toLowerCase().includes("monsoon") || p.name.toLowerCase().includes("waterfall") || p.tag.toLowerCase().includes("special")) cats.push("Monsoon Treks");
+    if (p.name.toLowerCase().includes("fort") || p.name.toLowerCase().includes("peak") || p.name.toLowerCase().includes("climb")) cats.push("Fort Treks");
+    if (p.tag.toLowerCase().includes("camping") || p.name.toLowerCase().includes("camping") || p.name.toLowerCase().includes("night")) cats.push("Camping Trips");
+    if (p.difficulty === "Easy" || p.difficulty === "Moderate") cats.push("Beginner Treks");
+    if (p.tag.toLowerCase().includes("backpack") || p.duration.includes("3D")) cats.push("Backpacking");
+    return cats;
+  };
+
+  const getCategoryCount = (catName: string) => {
+    return packages.filter(p => getTrekCategories(p).includes(catName)).length;
+  };
+
+  const list = [
+    { name: "Weekend Treks", icon: Calendar },
+    { name: "Monsoon Treks", icon: CloudRain },
+    { name: "Fort Treks", icon: Shield },
+    { name: "Camping Trips", icon: TentTree },
+    { name: "Beginner Treks", icon: Footprints },
+    { name: "Backpacking", icon: Backpack },
+  ];
+
   return (
     <section id="weekend" className="py-12 sm:py-16">
       <div className="container-trek">
         <SectionHead eyebrow="Pick your style" title="Trek Categories" />
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-          {CATEGORIES.map((c) => {
+          {list.map((c) => {
             const Icon = c.icon;
+            const count = getCategoryCount(c.name);
+            const isActive = activeCategory === c.name;
             return (
-              <a key={c.name} href="#packages" className="group rounded-2xl bg-card border border-border p-5 hover:border-forest hover:shadow-card transition-all">
-                <div className="h-11 w-11 grid place-items-center rounded-xl bg-forest/10 text-forest group-hover:bg-forest group-hover:text-cream transition-colors">
+              <a
+                key={c.name}
+                href="#packages"
+                onClick={() => setActiveCategory(isActive ? null : c.name)}
+                className={`group rounded-2xl border p-5 hover:border-forest hover:shadow-card transition-all cursor-pointer ${isActive ? "border-forest bg-forest/5" : "bg-card border-border"}`}
+              >
+                <div className={`h-11 w-11 grid place-items-center rounded-xl transition-colors ${isActive ? "bg-forest text-cream" : "bg-forest/10 text-forest group-hover:bg-forest group-hover:text-cream"}`}>
                   <Icon className="h-5 w-5" />
                 </div>
                 <div className="mt-3 font-display font-bold text-base sm:text-lg">{c.name}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{c.count} trips</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{count} treks</div>
               </a>
             );
           })}
@@ -719,7 +744,47 @@ function Categories() {
 
 /* ---------------- Packages ---------------- */
 /* ---------------- Packages — Netflix-style rails ---------------- */
-function FeaturedPackages({ packages, onBook }: { packages: TrekPackage[]; onBook: (p: TrekPackage) => void }) {
+function FeaturedPackages({ packages, activeCategory, setActiveCategory, onBook }: { packages: TrekPackage[]; activeCategory: string | null; setActiveCategory: (c: string | null) => void; onBook: (p: TrekPackage) => void }) {
+  const getTrekCategories = (p: TrekPackage): string[] => {
+    const cats: string[] = [];
+    if (p.duration.includes("1D") || p.duration.includes("2D")) cats.push("Weekend Treks");
+    if (p.tag.toLowerCase().includes("monsoon") || p.name.toLowerCase().includes("waterfall") || p.tag.toLowerCase().includes("special")) cats.push("Monsoon Treks");
+    if (p.name.toLowerCase().includes("fort") || p.name.toLowerCase().includes("peak") || p.name.toLowerCase().includes("climb")) cats.push("Fort Treks");
+    if (p.tag.toLowerCase().includes("camping") || p.name.toLowerCase().includes("camping") || p.name.toLowerCase().includes("night")) cats.push("Camping Trips");
+    if (p.difficulty === "Easy" || p.difficulty === "Moderate") cats.push("Beginner Treks");
+    if (p.tag.toLowerCase().includes("backpack") || p.duration.includes("3D")) cats.push("Backpacking");
+    return cats;
+  };
+
+  if (activeCategory) {
+    const filtered = packages.filter(p => getTrekCategories(p).includes(activeCategory));
+    return (
+      <section id="packages" className="py-12 sm:py-16 bg-background border-t border-border/50">
+        {filtered.length === 0 ? (
+          <div className="container-trek py-12 text-center text-muted-foreground border border-dashed border-border rounded-2xl bg-card max-w-xl mx-auto">
+            <p className="text-sm">No active tours found in "{activeCategory}" right now.</p>
+            <button onClick={() => setActiveCategory(null)} className="mt-3 text-xs font-bold text-ember hover:underline">View other packages</button>
+          </div>
+        ) : (
+          <PackageRail
+            title={activeCategory}
+            sub={`Showing matching tours for this category`}
+            items={filtered}
+            onBook={onBook}
+          />
+        )}
+        <div className="container-trek mt-6 text-center sm:text-left">
+          <button
+            onClick={() => setActiveCategory(null)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold hover:bg-muted transition-colors cursor-pointer text-foreground"
+          >
+            ← View All Categories & Rails
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   const rails: { title: string; sub: string; items: TrekPackage[] }[] = [
     { title: "Trending This Monsoon", sub: "What everyone is booking right now", items: packages },
     { title: "Weekend Escapes from Bangalore", sub: "Quick getaways · 1 – 2 days", items: packages.filter(p => p.duration.startsWith("1") || p.duration.startsWith("2")) },
