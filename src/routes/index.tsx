@@ -4,7 +4,7 @@ import {
   Mountain, MapPin, Calendar, Users, Clock, Shield, Phone, Mail, Instagram, Facebook,
   MessageCircle, Menu, X, Star, Check, ChevronRight, Compass, TentTree,
   Camera, Heart, Award, LifeBuoy, CloudRain, Leaf, Flame, Backpack, Wind,
-  AlertTriangle, IndianRupee, Sunrise, Footprints, Loader2,
+  AlertTriangle, IndianRupee, Sunrise, Footprints, Loader2, ExternalLink,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -44,7 +44,7 @@ const NAV = [
   { label: "Contact", href: "#contact" },
 ];
 
-type TrekPackage = {
+export type TrekPackage = {
   name: string;
   img: string;
   difficulty: string;
@@ -52,6 +52,7 @@ type TrekPackage = {
   price: number;
   city: string;
   nextBatch: string;
+  nextBatchDate?: string;
   seatsLeft: number;
   tag: string;
   altitude: string;
@@ -65,6 +66,7 @@ type TrekPackage = {
   inclusions: string[];
   exclusions: string[];
   thingsToCarry: string[];
+  itineraryNote?: string;
 };
 
 const DEFAULT_PICKUPS = [
@@ -97,7 +99,7 @@ const DEFAULT_CARRY = [
   "Original photo ID (mandatory)",
 ];
 
-const PACKAGES: TrekPackage[] = [
+export const PACKAGES: TrekPackage[] = [
   {
     name: "Kalsubai Peak Trek",
     img: trekKalsubai,
@@ -286,6 +288,30 @@ const PACKAGES: TrekPackage[] = [
   },
 ];
 
+export const PACKAGES_WITH_DATES: TrekPackage[] = PACKAGES.map((pkg) => {
+  const months: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+  const parts = pkg.nextBatch.split(" ");
+  const monthName = parts[0];
+  const dayVal = parseInt(parts[1], 10);
+  
+  const currentYear = new Date().getFullYear();
+  const month = months[monthName] !== undefined ? months[monthName] : 6;
+  const day = !isNaN(dayVal) ? dayVal : 15;
+  
+  const dateObj = new Date(currentYear, month, day, 6, 0, 0);
+  if (dateObj < new Date()) {
+    dateObj.setMonth(dateObj.getMonth() + 1);
+  }
+  
+  const formattedNextBatch = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  
+  return {
+    ...pkg,
+    nextBatch: formattedNextBatch,
+    nextBatchDate: dateObj.toISOString(),
+  };
+});
+
 const CATEGORIES = [
   { name: "Weekend Treks", icon: Calendar, count: 18 },
   { name: "Monsoon Treks", icon: CloudRain, count: 12 },
@@ -312,16 +338,94 @@ const FAQS = [
 
 function Index() {
   const [selected, setSelected] = useState<TrekPackage | null>(null);
+  const [packages, setPackages] = useState<TrekPackage[]>(PACKAGES_WITH_DATES);
+  const [galleryItems, setGalleryItems] = useState<string[]>([]);
+  const [reelItems, setReelItems] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadTreks = async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from("treks")
+          .select("*")
+          .order("created_at", { ascending: true });
+        
+        if (error) throw error;
+        if (data && data.length > 0) {
+          const mapped: TrekPackage[] = data.map((d: any) => ({
+            name: d.name,
+            img: d.img,
+            difficulty: d.difficulty,
+            duration: d.duration,
+            price: Number(d.price),
+            city: d.city,
+            nextBatch: d.next_batch,
+            nextBatchDate: d.next_batch_date,
+            seatsLeft: Number(d.seats_left),
+            tag: d.tag,
+            altitude: d.altitude,
+            basecamp: d.basecamp,
+            region: d.region,
+            bestSeason: d.best_season,
+            groupSize: d.group_size,
+            pickupPoints: d.pickup_points || [],
+            highlights: d.highlights || [],
+            itinerary: d.itinerary || [],
+            inclusions: d.inclusions || [],
+            exclusions: d.exclusions || [],
+            thingsToCarry: d.things_to_carry || [],
+            itineraryNote: d.itinerary_note || "",
+          }));
+          setPackages(mapped);
+          localStorage.setItem("m_treks", JSON.stringify(mapped));
+        }
+      } catch (err) {
+        console.log("Supabase treks fetch failed, trying local storage", err);
+        const cached = localStorage.getItem("m_treks");
+        if (cached) {
+          setPackages(JSON.parse(cached));
+        }
+      }
+    };
+
+    const loadGalleryReels = async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from("gallery_reels")
+          .select("*")
+          .order("created_at", { ascending: true });
+        
+        if (error) throw error;
+        if (data && data.length > 0) {
+          const gallery = data.filter((item: any) => item.type === "gallery").map((item: any) => item.url);
+          const reels = data.filter((item: any) => item.type === "reel").map((item: any) => item.url);
+          setGalleryItems(gallery);
+          setReelItems(reels);
+          localStorage.setItem("m_gallery", JSON.stringify(gallery));
+          localStorage.setItem("m_reels", JSON.stringify(reels));
+        }
+      } catch (err) {
+        console.log("Supabase gallery_reels fetch failed, trying local storage", err);
+        const cachedG = localStorage.getItem("m_gallery");
+        const cachedR = localStorage.getItem("m_reels");
+        if (cachedG) setGalleryItems(JSON.parse(cachedG));
+        if (cachedR) setReelItems(JSON.parse(cachedR));
+      }
+    };
+
+    loadTreks();
+    loadGalleryReels();
+  }, []);
 
   useEffect(() => {
     const handler = (e: Event) => {
       const ce = e as CustomEvent<{ name?: string }>;
-      const pkg = PACKAGES.find((p) => p.name === ce.detail?.name) ?? PACKAGES[0];
+      const pkg = packages.find((p) => p.name === ce.detail?.name) ?? packages[0];
       setSelected(pkg);
     };
     window.addEventListener("open-booking", handler as EventListener);
     return () => window.removeEventListener("open-booking", handler as EventListener);
-  }, []);
+  }, [packages]);
 
   return (
     <div id="home" className="min-h-screen bg-background text-foreground">
@@ -329,13 +433,13 @@ function Index() {
       <TrustStrip />
       <Hero />
       <Stats />
-      <Upcoming />
+      <Upcoming packages={packages} />
       <Categories />
-      <FeaturedPackages onBook={setSelected} />
+      <FeaturedPackages packages={packages} onBook={setSelected} />
       <Safety />
-      <Gallery />
+      <Gallery galleryItems={galleryItems} reelItems={reelItems} />
       <Reviews />
-      <BookingForm />
+      <BookingForm packages={packages} />
       <Contact />
       <FAQ />
       <Footer />
@@ -509,24 +613,42 @@ function Stats() {
 }
 
 /* ---------------- Upcoming Countdown ---------------- */
-function Upcoming() {
+function Upcoming({ packages }: { packages: TrekPackage[] }) {
   const [diff, setDiff] = useState({ d: 0, h: 0, m: 0, s: 0 });
+  const [upcomingTrek, setUpcomingTrek] = useState<TrekPackage | null>(null);
+
   useEffect(() => {
-    const target = new Date();
-    target.setDate(target.getDate() + 5);
-    target.setHours(6, 0, 0, 0);
+    const now = new Date();
+    const futureTreks = packages
+      .filter(p => p.nextBatchDate && new Date(p.nextBatchDate) > now)
+      .sort((a, b) => new Date(a.nextBatchDate!).getTime() - new Date(b.nextBatchDate!).getTime());
+
+    const trek = futureTreks[0] || null;
+    setUpcomingTrek(trek);
+
+    const targetDate = trek && trek.nextBatchDate ? new Date(trek.nextBatchDate) : (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 5);
+      d.setHours(6, 0, 0, 0);
+      return d;
+    })();
+
     const tick = () => {
-      const t = target.getTime() - Date.now();
+      const t = targetDate.getTime() - Date.now();
       const d = Math.max(0, Math.floor(t / 86400000));
       const h = Math.max(0, Math.floor((t / 3600000) % 24));
       const m = Math.max(0, Math.floor((t / 60000) % 60));
       const s = Math.max(0, Math.floor((t / 1000) % 60));
       setDiff({ d, h, m, s });
     };
+
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [packages]);
+
+  const title = upcomingTrek ? upcomingTrek.name : "Kalsubai Peak Monsoon Trek";
+  const seats = upcomingTrek ? upcomingTrek.seatsLeft : 4;
 
   return (
     <section id="upcoming" className="py-12 sm:py-16">
@@ -539,14 +661,14 @@ function Upcoming() {
                 <Sunrise className="h-3.5 w-3.5" /> Next Batch
               </span>
               <h2 className="mt-3 font-display text-2xl sm:text-4xl font-bold leading-tight">
-                Kalsubai Peak Monsoon Trek
+                {title}
               </h2>
               <p className="mt-2 text-cream/80 text-sm sm:text-base">
-                Bangalore departure · Only <span className="text-ember font-bold">4 seats</span> left for this batch.
+                Bangalore departure · Only <span className="text-ember font-bold">{seats} seats</span> left for this batch.
               </p>
-              <a href="#book" className="mt-5 inline-flex items-center gap-2 rounded-full bg-ember hover:bg-ember-deep text-white px-5 py-3 font-semibold">
+              <button onClick={() => openBooking(title)} className="mt-5 inline-flex items-center gap-2 rounded-full bg-ember hover:bg-ember-deep text-white px-5 py-3 font-semibold">
                 Reserve My Seat <ChevronRight className="h-4 w-4" />
-              </a>
+              </button>
             </div>
             <div className="grid grid-cols-4 gap-2 sm:gap-3">
               {[
@@ -597,12 +719,12 @@ function Categories() {
 
 /* ---------------- Packages ---------------- */
 /* ---------------- Packages — Netflix-style rails ---------------- */
-function FeaturedPackages({ onBook }: { onBook: (p: TrekPackage) => void }) {
+function FeaturedPackages({ packages, onBook }: { packages: TrekPackage[]; onBook: (p: TrekPackage) => void }) {
   const rails: { title: string; sub: string; items: TrekPackage[] }[] = [
-    { title: "Trending This Monsoon", sub: "What everyone is booking right now", items: PACKAGES },
-    { title: "Weekend Escapes from Bangalore", sub: "Quick getaways · 1 – 2 days", items: PACKAGES.filter(p => p.duration.startsWith("1") || p.duration.startsWith("2")) },
-    { title: "Heritage & Fort Treks", sub: "Walk through Maratha history", items: PACKAGES.filter(p => /fort|rajgad|harihar/i.test(p.name) || p.tag === "Heritage") },
-    { title: "For the Adventurous", sub: "Steep climbs, big rewards", items: PACKAGES.filter(p => p.difficulty !== "Easy") },
+    { title: "Trending This Monsoon", sub: "What everyone is booking right now", items: packages },
+    { title: "Weekend Escapes from Bangalore", sub: "Quick getaways · 1 – 2 days", items: packages.filter(p => p.duration.startsWith("1") || p.duration.startsWith("2")) },
+    { title: "Heritage & Fort Treks", sub: "Walk through Maratha history", items: packages.filter(p => /fort|rajgad|harihar/i.test(p.name) || p.tag === "Heritage") },
+    { title: "For the Adventurous", sub: "Steep climbs, big rewards", items: packages.filter(p => p.difficulty !== "Easy") },
   ];
 
   return (
@@ -810,22 +932,82 @@ function Safety() {
 }
 
 /* ---------------- Gallery ---------------- */
-function Gallery() {
-  const imgs = [trekKalsubai, trekRajgad, trekWaterfall, trekHarihar, trekCamping, trekSummit];
+function Gallery({ galleryItems, reelItems }: { galleryItems: string[]; reelItems: string[] }) {
+  const defaultImgs = [trekKalsubai, trekRajgad, trekWaterfall, trekHarihar, trekCamping, trekSummit];
+  const displayImgs = galleryItems && galleryItems.length > 0 ? galleryItems : defaultImgs;
+
+  const [activeTab, setActiveTab] = useState<"photos" | "reels">("photos");
+
+  const defaultReels = [
+    "https://www.instagram.com/reel/C8C8C8C8C8C/",
+    "https://www.instagram.com/reel/D9D9D9D9D9D/"
+  ];
+  const displayReels = reelItems && reelItems.length > 0 ? reelItems : defaultReels;
+
   return (
     <section id="gallery" className="py-12 sm:py-16">
       <div className="container-trek">
-        <SectionHead eyebrow="Memories" title="Gallery & Reels" sub="Real photos from real batches across the Sahyadris." />
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
-          {imgs.map((src, i) => (
-            <div key={i} className={`relative overflow-hidden rounded-2xl group ${i === 0 ? "col-span-2 row-span-2 aspect-square md:aspect-auto" : "aspect-square"}`}>
-              <img src={src} alt={`Trek moment ${i + 1}`} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-              <div className="absolute inset-0 bg-gradient-to-t from-forest-deep/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                <Camera className="h-5 w-5 text-cream" />
-              </div>
-            </div>
-          ))}
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <SectionHead eyebrow="Memories" title="Gallery & Reels" sub="Real photos and videos from real batches across the Sahyadris." align="left" />
+          <div className="flex gap-2 bg-muted/60 p-1 rounded-xl self-start">
+            <button
+              onClick={() => setActiveTab("photos")}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === "photos" ? "bg-forest text-cream shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              Photos
+            </button>
+            <button
+              onClick={() => setActiveTab("reels")}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === "reels" ? "bg-forest text-cream shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              Reels
+            </button>
+          </div>
         </div>
+
+        {activeTab === "photos" ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+            {displayImgs.map((src, i) => (
+              <div key={i} className={`relative overflow-hidden rounded-2xl group ${i === 0 ? "col-span-2 row-span-2 aspect-square md:aspect-auto" : "aspect-square"}`}>
+                <img src={src} alt={`Trek moment ${i + 1}`} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-forest-deep/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                  <Camera className="h-5 w-5 text-cream" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {displayReels.map((url, i) => {
+              const isDirectVideo = url.endsWith(".mp4") || url.endsWith(".webm") || url.endsWith(".ogg");
+              return (
+                <div key={i} className="relative overflow-hidden rounded-2xl bg-card border border-border aspect-[9/16] group">
+                  {isDirectVideo ? (
+                    <video src={url} controls className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full relative flex flex-col justify-between p-6 bg-forest-deep/90 text-cream">
+                      <div className="h-10 w-10 rounded-full bg-cream/10 flex items-center justify-center">
+                        <Flame className="h-5 w-5 text-ember" />
+                      </div>
+                      <div className="space-y-4">
+                        <h4 className="font-display font-bold text-lg leading-tight">Trek Reel #{i + 1}</h4>
+                        <p className="text-xs text-cream/70">Click below to watch this adventure reel on Instagram.</p>
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ember text-cream py-3 text-sm font-bold hover:bg-ember-deep transition-all"
+                        >
+                          Watch Reel <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -876,7 +1058,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 /* ---------------- Booking Form ---------------- */
-function BookingForm() {
+function BookingForm({ packages }: { packages: TrekPackage[] }) {
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -919,7 +1101,7 @@ function BookingForm() {
       }
 
       // 2. Insert record into Supabase bookings table
-      const { error: dbError } = await supabase
+      const { error: dbError } = await (supabase as any)
         .from("bookings")
         .insert([
           {
@@ -1015,7 +1197,7 @@ Please verify my payment screenshot and confirm my seat!`;
                 <Field label="Full Name" type="text" placeholder="Your name" required name="fullName" />
                 <Field label="Mobile Number" type="tel" placeholder="+91 9XXXXXXXXX" required name="mobile" />
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <SelectField label="Trek Selection" options={PACKAGES.map(p => p.name)} name="trek" />
+                  <SelectField label="Trek Selection" options={packages.map(p => p.name)} name="trek" />
                   <Field label="Number of Seats" type="number" placeholder="1" min={1} max={10} name="seats" defaultValue={1} />
                 </div>
                 <SelectField label="Pickup Point" options={["Marathahalli", "Madiwala (BTM)", "Majestic", "Hebbal"]} name="pickup" />
@@ -1371,7 +1553,7 @@ function PackageDetailsModal({ pkg, onClose }: { pkg: TrekPackage | null; onClos
       }
 
       // 2. Insert record into Supabase bookings table
-      const { error: dbError } = await supabase
+      const { error: dbError } = await (supabase as any)
         .from("bookings")
         .insert([
           {
@@ -1633,6 +1815,12 @@ function StepItinerary({ pkg }: { pkg: TrekPackage }) {
           </li>
         ))}
       </ol>
+      {pkg.itineraryNote && (
+        <div className="mt-5 rounded-xl bg-ember/10 border border-ember/25 p-3 flex gap-2 text-xs">
+          <AlertTriangle className="h-4 w-4 text-ember shrink-0 mt-0.5" />
+          <span><strong>Note:</strong> {pkg.itineraryNote}</span>
+        </div>
+      )}
     </div>
   );
 }
