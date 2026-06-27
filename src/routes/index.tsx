@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
-  Mountain, MapPin, Calendar, Users, Clock, Shield, Phone, Mail, Instagram,
+  Mountain, MapPin, Calendar, Users, Clock, Shield, Phone, Mail, Instagram, Facebook,
   MessageCircle, Menu, X, Star, Check, ChevronRight, Compass, TentTree,
   Camera, Heart, Award, LifeBuoy, CloudRain, Leaf, Flame, Backpack, Wind,
   AlertTriangle, IndianRupee, Sunrise, Footprints, Loader2,
@@ -1084,7 +1084,7 @@ function Contact() {
               { i: Phone, l: "Phone", v: "+91 89834 33664" },
               { i: MessageCircle, l: "WhatsApp", v: "+91 89834 33664" },
               { i: Mail, l: "Email", v: "hello@maharashtratreks.com" },
-              { i: Instagram, l: "Instagram", v: "@maharashtra.treks" },
+              { i: Instagram, l: "Instagram", v: "themtc.in" },
               { i: MapPin, l: "Office", v: "Indiranagar, Bangalore, KA 560038" },
             ].map((c) => {
               const Icon = c.i;
@@ -1167,8 +1167,11 @@ function Footer() {
         <div>
           <h4 className="font-display font-bold text-cream mb-3">Follow</h4>
           <div className="flex gap-2">
-            {[Instagram, MessageCircle, Mail, Phone].map((Icon, i) => (
-              <a key={i} href="#contact" className="h-10 w-10 rounded-xl bg-cream/10 hover:bg-ember grid place-items-center transition-colors">
+            {[
+              { Icon: Instagram, href: "https://www.instagram.com/themtc.in/" },
+              { Icon: Facebook, href: "https://www.facebook.com/Mtrekkingcompany/" },
+            ].map(({ Icon, href }, i) => (
+              <a key={i} href={href} target="_blank" rel="noopener noreferrer" className="h-10 w-10 rounded-xl bg-cream/10 hover:bg-ember grid place-items-center transition-colors">
                 <Icon className="h-4 w-4" />
               </a>
             ))}
