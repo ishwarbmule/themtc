@@ -217,6 +217,78 @@ function DashboardView({ session }: { session: any }) {
           itineraryNote: d.itinerary_note || "",
         }));
         setPackages(mapped);
+
+        // Auto-seed missing default packages if none of them exist in the table
+        const defaultNames = PACKAGES.map(p => p.name.toLowerCase());
+        const hasAnyDefault = data.some((d: any) => defaultNames.includes(d.name.toLowerCase()));
+        if (!hasAnyDefault && session) {
+          console.log("No default treks found in Supabase. Seeding default PACKAGES.");
+          const seedRows = PACKAGES.map((pkg) => ({
+            name: pkg.name,
+            img: pkg.img,
+            difficulty: pkg.difficulty,
+            duration: pkg.duration,
+            price: pkg.price,
+            city: pkg.city,
+            next_batch: pkg.nextBatch,
+            next_batch_date: pkg.nextBatchDate || null,
+            seats_left: pkg.seatsLeft,
+            tag: pkg.tag,
+            altitude: pkg.altitude,
+            basecamp: pkg.basecamp,
+            region: pkg.region,
+            best_season: pkg.bestSeason,
+            group_size: pkg.groupSize,
+            pickup_points: pkg.pickupPoints,
+            highlights: pkg.highlights,
+            itinerary: pkg.itinerary,
+            inclusions: pkg.inclusions,
+            exclusions: pkg.exclusions,
+            things_to_carry: pkg.thingsToCarry,
+            itinerary_note: pkg.itineraryNote || "",
+          }));
+
+          const { error: seedError } = await (supabase as any)
+            .from("treks")
+            .insert(seedRows);
+          
+          if (!seedError) {
+            console.log("Automatically seeded default treks successfully!");
+            toast.info("Database populated with default treks.");
+            const { data: newData } = await (supabase as any)
+              .from("treks")
+              .select("*")
+              .order("created_at", { ascending: true });
+            if (newData) {
+              const reMapped = newData.map((d: any) => ({
+                name: d.name,
+                img: d.img,
+                difficulty: d.difficulty,
+                duration: d.duration,
+                price: Number(d.price),
+                city: d.city,
+                nextBatch: d.next_batch,
+                nextBatchDate: d.next_batch_date,
+                seatsLeft: Number(d.seats_left),
+                tag: d.tag,
+                altitude: d.altitude,
+                basecamp: d.basecamp,
+                region: d.region,
+                bestSeason: d.best_season,
+                groupSize: d.group_size,
+                pickupPoints: d.pickup_points || [],
+                highlights: d.highlights || [],
+                itinerary: d.itinerary || [],
+                inclusions: d.inclusions || [],
+                exclusions: d.exclusions || [],
+                thingsToCarry: d.things_to_carry || [],
+                itineraryNote: d.itinerary_note || "",
+              }));
+              setPackages(reMapped);
+              localStorage.setItem("m_treks", JSON.stringify(reMapped));
+            }
+          }
+        }
       } else {
         if (session) {
           console.log("Treks table is empty, seeding with default PACKAGES");
@@ -845,38 +917,96 @@ function DashboardView({ session }: { session: any }) {
                 <h2 className="font-display font-bold text-xl sm:text-2xl text-foreground">Trek Packages</h2>
                 <p className="text-xs text-muted-foreground mt-1">Manage active tours, edit itinerary details, pricing, and exclusions.</p>
               </div>
-              <button
-                onClick={() => {
-                  setEditTrek({
-                    name: "",
-                    img: "",
-                    difficulty: "Moderate",
-                    duration: "2D / 1N",
-                    price: 2999,
-                    city: "Bangalore",
-                    nextBatch: "Jul 12",
-                    nextBatchDate: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
-                    seatsLeft: 10,
-                    tag: "Monsoon Special",
-                    altitude: "",
-                    basecamp: "",
-                    region: "Sahyadris, Maharashtra",
-                    bestSeason: "",
-                    groupSize: "12 – 25 trekkers",
-                    pickupPoints: ["Bangalore — Marathahalli (6:30 PM)", "Bangalore — Majestic (8:00 PM)"],
-                    highlights: [],
-                    itinerary: [],
-                    inclusions: [],
-                    exclusions: [],
-                    thingsToCarry: [],
-                    itineraryNote: "",
-                  });
-                  setFormTab("general");
-                }}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-forest hover:bg-forest-deep text-cream text-xs font-bold px-4 py-2.5 transition-colors shadow-sm"
-              >
-                <Plus className="h-4 w-4" /> Add Tour Package
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const defaultNames = PACKAGES.map(p => p.name.toLowerCase());
+                    const existingNames = packages.map(p => p.name.toLowerCase());
+                    const missing = PACKAGES.filter(p => !existingNames.includes(p.name.toLowerCase()));
+                    
+                    if (missing.length === 0) {
+                      toast.info("All default tours are already in the list!");
+                      return;
+                    }
+                    
+                    toast.loading(`Importing ${missing.length} default tours...`);
+                    
+                    const seedRows = missing.map((pkg) => ({
+                      name: pkg.name,
+                      img: pkg.img,
+                      difficulty: pkg.difficulty,
+                      duration: pkg.duration,
+                      price: pkg.price,
+                      city: pkg.city,
+                      next_batch: pkg.nextBatch,
+                      next_batch_date: pkg.nextBatchDate || null,
+                      seats_left: pkg.seatsLeft,
+                      tag: pkg.tag,
+                      altitude: pkg.altitude,
+                      basecamp: pkg.basecamp,
+                      region: pkg.region,
+                      best_season: pkg.bestSeason,
+                      group_size: pkg.groupSize,
+                      pickup_points: pkg.pickupPoints,
+                      highlights: pkg.highlights,
+                      itinerary: pkg.itinerary,
+                      inclusions: pkg.inclusions,
+                      exclusions: pkg.exclusions,
+                      things_to_carry: pkg.thingsToCarry,
+                      itinerary_note: pkg.itineraryNote || "",
+                    }));
+
+                    try {
+                      const { error: seedError } = await (supabase as any)
+                        .from("treks")
+                        .insert(seedRows);
+                      
+                      toast.dismiss();
+                      if (seedError) throw seedError;
+                      toast.success(`Successfully imported ${missing.length} default tours!`);
+                      fetchTreks();
+                    } catch (err: any) {
+                      toast.error("Import failed: " + err.message);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-xs font-bold px-4 py-2.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" /> Import Default Tours
+                </button>
+                <button
+                  onClick={() => {
+                    setEditTrek({
+                      name: "",
+                      img: "",
+                      difficulty: "Moderate",
+                      duration: "2D / 1N",
+                      price: 2999,
+                      city: "Bangalore",
+                      nextBatch: "Jul 12",
+                      nextBatchDate: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
+                      seatsLeft: 10,
+                      tag: "Monsoon Special",
+                      altitude: "",
+                      basecamp: "",
+                      region: "Sahyadris, Maharashtra",
+                      bestSeason: "",
+                      groupSize: "12 – 25 trekkers",
+                      pickupPoints: ["Bangalore — Marathahalli (6:30 PM)", "Bangalore — Majestic (8:00 PM)"],
+                      highlights: [],
+                      itinerary: [],
+                      inclusions: [],
+                      exclusions: [],
+                      thingsToCarry: [],
+                      itineraryNote: "",
+                    });
+                    setFormTab("general");
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-forest hover:bg-forest-deep text-cream text-xs font-bold px-4 py-2.5 transition-colors shadow-sm cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" /> Add Tour Package
+                </button>
+              </div>
             </div>
 
             {treksLoading ? (
